@@ -173,8 +173,10 @@ TEST_CASE("player projectiles fly, hit and kill") {
     REQUIRE(g.player() == Pos{4, 2});
 
     // Two hits needed; fire until the bounty lands.
+    Game::Input fire_in;
+    fire_in.fire = true;
     for (int i = 0; i < 60 && g.score() < 100; ++i) {
-        g.tick({.fire = true, .potion = false});
+        g.tick(fire_in);
     }
     CHECK(g.score() >= 100);
     bool spawner_alive = false;
@@ -232,7 +234,9 @@ TEST_CASE("potion is a smart bomb") {
     }
     REQUIRE(enemies > 0);
 
-    g.tick({.potion = true});
+    Game::Input potion_in;
+    potion_in.potion = true;
+    g.tick(potion_in);
     int enemies_after = 0;
     for (const Entity& e : g.entities()) {
         if (is_enemy(e.kind)) ++enemies_after;
