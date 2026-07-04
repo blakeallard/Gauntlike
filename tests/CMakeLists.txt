@@ -11,6 +11,7 @@ add_executable(tae_tests
   test_input.cpp
   test_map.cpp
   test_mapgen.cpp
+  test_game.cpp
 )
 target_link_libraries(tae_tests PRIVATE tae gauntlike_core Catch2::Catch2WithMain)
 
