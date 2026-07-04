@@ -4,6 +4,7 @@
 
 #include <clocale>
 #include <csignal>
+#include <cstring>
 #include <cstdlib>
 #include <initializer_list>
 
@@ -28,7 +29,15 @@ void atexit_handler() {
 }  // namespace
 
 CursesSession::CursesSession() {
-    std::setlocale(LC_ALL, "");  // required for wide-char (Unicode) output
+    // Wide-char (Unicode) output needs a UTF-8 locale. Prefer the user's own;
+    // if the environment provides none (bare containers, CI), fall back to a
+    // UTF-8 locale so block glyphs don't degrade to spaces.
+    const char* loc = std::setlocale(LC_ALL, "");
+    if (!loc || !std::strstr(loc, "UTF-8")) {
+        if (!std::setlocale(LC_ALL, "C.UTF-8")) {
+            std::setlocale(LC_ALL, "en_US.UTF-8");
+        }
+    }
 
     initscr();
     raw();
