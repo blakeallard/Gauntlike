@@ -29,7 +29,7 @@ inline constexpr Color BloodRed{170, 24, 40};
 inline constexpr Color Orange{240, 130, 40};
 inline constexpr Color Gold{250, 200, 60};
 inline constexpr Color Green{60, 190, 80};
-inline constexpr Color DarkGreen{20, 100, 50};
+inline constexpr Color DarkGreen{20, 110, 40};
 inline constexpr Color Grey{130, 130, 145};
 inline constexpr Color White{240, 240, 235};
 }  // namespace pal
