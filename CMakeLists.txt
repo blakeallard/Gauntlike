@@ -14,6 +14,7 @@ add_compile_options(-Wall -Wextra)
 add_subdirectory(engine)
 add_subdirectory(games/gauntlike)
 add_subdirectory(games/snake)
+add_subdirectory(games/breakout)
 
 include(CTest)
 if(BUILD_TESTING)
