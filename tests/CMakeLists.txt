@@ -10,6 +10,7 @@ add_executable(tae_tests
   test_color.cpp
   test_input.cpp
   test_map.cpp
+  test_mapgen.cpp
 )
 target_link_libraries(tae_tests PRIVATE tae gauntlike_core Catch2::Catch2WithMain)
 
