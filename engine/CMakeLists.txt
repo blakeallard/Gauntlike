@@ -10,6 +10,7 @@ add_library(tae STATIC
   src/input_map.cpp
   src/color.cpp
   src/ui.cpp
+  src/scores.cpp
 )
 
 target_include_directories(tae PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
