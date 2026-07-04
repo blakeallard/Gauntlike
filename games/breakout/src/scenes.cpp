@@ -74,7 +74,7 @@ public:
                 return;
             }
             if (k == Key::Quit) {
-                app.quit();
+                tae::quit_or_pop(app);
                 return;
             }
         }
@@ -216,7 +216,7 @@ public:
                 return;
             }
             if (k == Key::Quit) {
-                app.quit();
+                tae::quit_or_pop(app);
                 return;
             }
         }

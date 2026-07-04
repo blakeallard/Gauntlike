@@ -80,7 +80,7 @@ public:
                 return;
             }
             if (k == Key::Quit) {
-                app.quit();
+                tae::quit_or_pop(app);
                 return;
             }
         }
@@ -157,7 +157,7 @@ public:
                                                             app.renderer().height()));
                     return;
                 case Key::Quit:
-                    app.quit();
+                    tae::quit_or_pop(app);
                     return;
                 default:
                     break;

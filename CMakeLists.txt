@@ -15,6 +15,11 @@ add_subdirectory(engine)
 add_subdirectory(games/gauntlike)
 add_subdirectory(games/snake)
 add_subdirectory(games/breakout)
+add_subdirectory(games/arcade)
+
+include(GNUInstallDirs)
+install(TARGETS gauntlike snake breakout arcade
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 include(CTest)
 if(BUILD_TESTING)
