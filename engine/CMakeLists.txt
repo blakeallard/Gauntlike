@@ -7,6 +7,7 @@ add_library(tae STATIC
   src/app.cpp
   src/renderer.cpp
   src/input.cpp
+  src/input_map.cpp
   src/color.cpp
 )
 
