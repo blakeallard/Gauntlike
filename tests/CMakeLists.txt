@@ -14,8 +14,9 @@ add_executable(tae_tests
   test_game.cpp
   test_scores.cpp
   test_snake.cpp
+  test_breakout.cpp
 )
-target_link_libraries(tae_tests PRIVATE tae gauntlike_core snake_core Catch2::Catch2WithMain)
+target_link_libraries(tae_tests PRIVATE tae gauntlike_core snake_core breakout_core Catch2::Catch2WithMain)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
