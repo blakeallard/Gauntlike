@@ -17,6 +17,7 @@ std::vector<int> poll_raw() {
             case KEY_ENTER:
             case '\r':
             case '\n': keys.push_back(rawkey::Enter); break;
+            case 27: keys.push_back(rawkey::Escape); break;
             default: keys.push_back(ch); break;
         }
     }
