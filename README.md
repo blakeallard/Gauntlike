@@ -1,137 +1,111 @@
-# Terminal Arcade — Execution Plan for Claude Code
+# Terminal Arcade
 
-## Project Vision
+Retro games in your terminal — C++20, ncurses, zero assets. Everything is
+Unicode glyphs and ANSI color at a fixed 30 FPS, built on a small shared
+engine (`tae`). Perfect for playing between compiles.
 
-Build a collection of retro-style games playable entirely in the terminal (Ghostty), written in **C++20**, with an aesthetic inspired by Gauntlet, NES/SNES, and Sega Genesis classics. The centerpiece is **"Gauntlike"** — a Gauntlet-style dungeon crawler — built on a small reusable engine that later games (Snake, Breakout, a vertical shmup) share.
+**Gauntlike** — a Gauntlet-style dungeon crawler — is the main event, joined
+by **Snake** and **Breakout**, all launchable from a single `arcade` menu.
 
-Design goals:
-- Instant launch from the command line (`gauntlike`), instant quit (`q`), pause anytime (`p`). Perfect for playing between compiles.
-- Runs at a smooth fixed timestep (~30 FPS logic) with flicker-free rendering.
-- No external assets — everything is Unicode glyphs + ANSI color. Ghostty supports 24-bit truecolor, so use it for that Genesis-palette feel.
-- Zero-config: builds with CMake, depends only on ncurses (universally available).
+## Build
 
-## Tech Stack
+Requires CMake ≥ 3.20, a C++20 compiler (gcc/clang) and ncurses (wide-char).
 
-| Choice | Decision | Rationale |
-|---|---|---|
-| Language | C++20 | User preference; modern features (structs w/ designated init, ranges, `std::optional`) |
-| Rendering | ncurses (wide-char: `ncursesw`) | Ubiquitous, stable, handles input + double buffering. Enable 256/truecolor via `init_extended_pair` where available |
-| Build | CMake ≥ 3.20 | Standard |
-| Testing | Catch2 (FetchContent) | Unit-test game logic (map gen, combat math) headlessly — never test rendering |
-| RNG | `std::mt19937` seeded per-run, seed printable for reproducible dungeons | Debuggability |
-
-**Note on truecolor:** Ghostty supports 24-bit color. Detect via `COLORTERM=truecolor` env var; if present, use extended color pairs; otherwise fall back to 256-color palette. Abstract this behind the engine's `Color` type so game code never touches ncurses color pairs directly.
-
-## Repository Structure
-
-```
-terminal-arcade/
-├── CMakeLists.txt
-├── README.md
-├── engine/               # Shared static library: "tae" (terminal arcade engine)
-│   ├── include/tae/
-│   │   ├── app.hpp       # Game loop, fixed timestep, scene stack
-│   │   ├── renderer.hpp  # Cell buffer, glyphs, color, diff-based draw
-│   │   ├── input.hpp     # Non-blocking key polling, key repeat handling
-│   │   ├── color.hpp     # RGB struct + palette, truecolor/256 fallback
-│   │   ├── rng.hpp
-│   │   └── ui.hpp        # Text, boxes, menus, HUD bars
-│   └── src/
-├── games/
-│   ├── gauntlike/        # Game 1 (the main event)
-│   ├── snake/            # Game 2
-│   ├── breakout/         # Game 3
-│   └── starfall/         # Game 4: vertical shmup (stretch)
-└── tests/
+```sh
+cmake -B build
+cmake --build build
 ```
 
-Each game builds to its own binary. A top-level `arcade` binary presents a menu to launch any of them.
+Binaries land in `build/games/*/`:
 
----
+```sh
+./build/games/arcade/arcade        # menu launcher
+./build/games/gauntlike/gauntlike  # or run any game directly
+./build/games/snake/snake
+./build/games/breakout/breakout
+```
 
-## Phase 0 — Scaffolding (Milestone: "hello dungeon")
+Install them on your PATH:
 
-1. Init repo, CMakeLists with `engine` static lib + `gauntlike` executable, `-Wall -Wextra`, C++20.
-2. Link `ncursesw`. Verify wide-char + color init works.
-3. Minimal `App` class: init curses (raw mode, no echo, hidden cursor, `nodelay`), run loop, restore terminal on exit **and on crash** (install atexit/signal handlers — a corrupted terminal is the #1 curses annoyance).
-4. Render "HELLO DUNGEON" centered, quit on `q`.
+```sh
+cmake --install build --prefix ~/.local
+```
 
-**Acceptance:** `cmake -B build && cmake --build build && ./build/gauntlike` shows the screen, quits cleanly, terminal state restored.
+Run the tests (Catch2 is fetched automatically):
 
-## Phase 1 — Engine Core
+```sh
+ctest --test-dir build
+```
 
-1. **Fixed timestep loop:** logic at 30 Hz, render after each tick. Sleep the remainder; never busy-wait.
-2. **Renderer:** off-screen `Cell` buffer (glyph + fg/bg color). Each frame, diff against previous buffer and only redraw changed cells (ncurses batches, but diffing keeps it snappy on large terminals). Handle terminal resize (`KEY_RESIZE`) gracefully.
-3. **Input:** poll all pending keys per tick into a `std::vector<Key>`; map arrows + WASD + vi keys (hjkl). Support "held direction" feel by tracking last direction.
-4. **Color:** `Color{r,g,b}` with a curated 16-color retro palette (think Genesis: deep purples, teals, hot magenta) + truecolor/256 fallback logic.
-5. **Scene stack:** push/pop scenes (TitleScene, PlayScene, PauseScene, GameOverScene).
-6. **UI helpers:** draw box, centered text, HP/score bar.
+Terminals must be at least **80×24**; the games pause with a friendly prompt
+if yours is smaller.
 
-**Acceptance:** demo scene with a `@` moving around at 30 FPS, no flicker, resize doesn't crash, unit tests pass for input mapping and color fallback.
+## Controls
 
-## Phase 2 — Gauntlike (the Gauntlet-style crawler)
+Shared across all games:
 
-### Design summary
-- Top-down dungeon, one screen per floor (fits terminal, min 80×24; scale map to terminal size).
-- Pick a class at start: **Warrior** (melee, high HP), **Wizard** (ranged, low HP), **Elf** (fast, medium), **Valkyrie** (balanced).
-- Health drains slowly over time (classic Gauntlet pressure). Food restores it. "Warrior needs food, badly."
-- Enemies stream from **spawners** (generators) until you destroy the spawner.
-- Find the key, open the exit, descend. Difficulty scales per floor. Score persists to a local high-score file.
+| Key | Action |
+|---|---|
+| arrows / `wasd` / `hjkl` | move (plus `y u b n` diagonals in Gauntlike) |
+| `space` | fire / launch / start |
+| `enter` | confirm |
+| `p` | pause |
+| `q` | quit / back out |
 
-### Build order
-1. **Map + tiles:** `Tile{Wall, Floor, Door, Exit, Spawner…}`, glyph/color per tile (`█` walls with per-floor palette, `·` floor). Hand-author 2 test maps first.
-2. **Procedural generation:** rooms-and-corridors (BSP or simple room placement + corridor carving). Guarantee connectivity (flood fill check). Place: player start, exit, key, 2–4 spawners, food, treasure, potions. Unit-test connectivity + item placement.
-3. **Entities:** simple struct-of-entities or small ECS-lite (id + component arrays — keep it boring). Player, monsters (Grunt `g`, Ghost `G`, Demon `d`, Lobber `l`), projectiles, pickups.
-4. **Movement + collision:** grid-based, 8-directional for player, tile collision.
-5. **Combat:** melee bump-attack + ranged projectiles (per class). Damage numbers flash. Enemies die with a brief `*` burst.
-6. **Enemy AI:** greedy chase with simple pathfinding (BFS distance field recomputed every few ticks — cheap and very Gauntlet). Ghosts ignore walls partially? Keep v1 simple: all chase.
-7. **Spawners:** emit an enemy every N ticks if under cap; destroyable, worth big points.
-8. **Health drain + food + potions:** potion = screen-clearing smart bomb (classic).
-9. **HUD:** top bar — class, HP bar, score, keys, floor, potion count.
-10. **Floors + difficulty curve:** exit → regenerate map with higher spawn rates/enemy HP.
-11. **Title / pause / game over scenes,** high-score table saved to `~/.local/share/terminal-arcade/scores`.
+### Gauntlike
 
-**Acceptance:** full loop — title → class select → descend ≥3 floors → die → game over → high score recorded. Playable and *fun* at 30 FPS in Ghostty.
+Pick a class — **Warrior** (melee bruiser), **Wizard** (glass cannon),
+**Elf** (fast), **Valkyrie** (balanced) — and descend. Your health drains
+constantly, Gauntlet-style: grab food (`%`) to survive. Enemies pour out of
+spawners (`▓`) until you destroy them. Find the key (`k`), open the exit,
+descend; every floor is deeper and meaner. `e` drinks a potion — a
+screen-clearing smart bomb. Bump into enemies for melee, `space` shoots in
+the direction you last moved.
 
-### Juice pass (retro feel)
-- Per-floor color themes (dungeon → caves → hellish reds).
-- Screen shake (1-cell offset for 2 ticks) on player damage.
-- Announcer-style messages in a bottom message line ("Elf shot the food!").
-- Blinking exit tile, animated spawner glyphs.
+Each run prints its dungeon seed in the message line, so a given seed
+reproduces the same floors.
 
-## Phase 3 — Second Game: Snake (engine validation)
+### Snake
 
-Small on purpose — proves the engine is reusable. Classic snake, wrap-around option, speed increases, same HUD/scene/high-score infrastructure. Should take a fraction of Gauntlike's effort; if it doesn't, refactor the engine.
+Classic. Toggle wrap-around walls on the title screen with ◄ ►. The snake
+speeds up as you score.
 
-## Phase 4 — Breakout
+### Breakout
 
-Sub-cell smoothness trick: use half-block glyphs (`▀ ▄`) to double vertical resolution so ball movement feels smooth. Paddle via arrows/a-d, brick colors by row, power-ups (multi-ball, wide paddle), levels.
+Half-block glyphs (`▀ ▄`) double the vertical resolution, so the ball moves
+smoothly. Steer the rebound with where the ball meets the paddle. Catch
+falling power-ups: `W` widens the paddle for a while, `M` splits the ball
+three ways.
 
-## Phase 5 (stretch) — Starfall (vertical shmup)
+High scores persist per game under
+`$XDG_DATA_HOME/terminal-arcade/` (default `~/.local/share/terminal-arcade/`).
 
-Genesis-style shooter: player ship `▲`, enemy waves in patterns, bullet streams, power-ups, boss every 5 waves. Reuses projectile + spawner code from Gauntlike.
+## Ghostty notes
 
-## Phase 6 — Arcade launcher + packaging
+- Ghostty supports 24-bit truecolor and advertises it via
+  `COLORTERM=truecolor`; the engine detects that and allocates extended
+  color pairs, falling back to the xterm-256 palette elsewhere.
+- Any font with good box-drawing/block coverage looks great — the games only
+  use Unicode glyphs. A Nerd Font or a bitmap-style font (e.g. Terminus)
+  leans into the retro look.
+- A UTF-8 locale is required for the block glyphs; the engine falls back to
+  `C.UTF-8` automatically if your environment doesn't set one.
 
-- `arcade` binary: menu listing installed games, launches in-process via scene stack.
-- `cmake --install` support; short README with Ghostty-specific notes (truecolor, font recommendations like a Nerd Font or classic bitmap-style font).
+## Repository layout
 
----
+```
+engine/            # "tae" — shared terminal-arcade engine (static lib)
+games/gauntlike/   # the dungeon crawler
+games/snake/
+games/breakout/
+games/arcade/      # menu launcher (runs games in-process)
+tests/             # Catch2 unit tests for all headless game logic
+docs/PLAN.md       # the original execution plan this project was built from
+```
 
-## Working Instructions for Claude Code
-
-1. Work phase by phase, milestone by milestone. **Do not start Phase N+1 until Phase N's acceptance criteria pass.**
-2. Commit at each numbered step with a descriptive message.
-3. After each milestone, build and run a smoke test; also run `ctest`.
-4. Keep game logic free of ncurses calls — logic must be headless-testable. Only `renderer.cpp`/`input.cpp` touch curses.
-5. Keep it boring: no heavy ECS frameworks, no threads (single-threaded loop), no dependencies beyond ncurses + Catch2.
-6. Guard every curses init with proper teardown (RAII wrapper `CursesSession`), including on exceptions and SIGINT/SIGTERM.
-7. If terminal is smaller than 80×24, show a friendly "resize your terminal" screen instead of crashing.
-8. Performance target: <2% CPU while idle-rendering an unchanged frame (diff renderer working correctly).
-
-## Definition of Done (v1.0)
-
-- Gauntlike + Snake + Breakout fully playable, launcher works.
-- Clean build with no warnings on macOS (clang) and Linux (gcc).
-- Terminal never left in a broken state, under any exit path.
-- High scores persist. README documents controls and build steps.
+Engine design in one breath: fixed 30 Hz timestep, off-screen cell buffer
+with diff-based drawing (unchanged frames cost nothing), scene stack, RGB
+colors quantized to whatever the terminal supports, and a curses session
+wrapper that restores your terminal on every exit path — including crashes
+and Ctrl-C. Game logic never touches curses, so all of it runs headless in
+the test suite.

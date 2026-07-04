@@ -48,6 +48,9 @@ public:
     void run(std::unique_ptr<Scene> initial);
     void quit() { running_ = false; }
 
+    // Scenes on the stack right now (pending ops not counted).
+    std::size_t stack_depth() const { return stack_.size(); }
+
     static constexpr int kTickHz = 30;
     static constexpr int kMinCols = 80;
     static constexpr int kMinRows = 24;
@@ -67,5 +70,15 @@ private:
     std::vector<PendingOp> pending_;
     bool running_ = false;
 };
+
+// "Quit" from a game's outermost scene: when the game was launched from a
+// parent scene (the arcade menu), pop back to it; standalone, exit the app.
+inline void quit_or_pop(App& app) {
+    if (app.stack_depth() > 1) {
+        app.pop();
+    } else {
+        app.quit();
+    }
+}
 
 }  // namespace tae
