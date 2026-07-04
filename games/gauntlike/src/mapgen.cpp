@@ -86,6 +86,7 @@ bool try_generate(tae::Rng& rng, int w, int h, int floor, FloorPlan& out) {
         Room r;
         r.w = rng.range(6, 12);
         r.h = rng.range(4, 7);
+        if (w - r.w - 2 < 1 || h - r.h - 2 < 1) continue;  // map too small for this room
         r.x = rng.range(1, w - r.w - 2);
         r.y = rng.range(1, h - r.h - 2);
         bool ok = true;
@@ -186,15 +187,31 @@ bool try_generate(tae::Rng& rng, int w, int h, int floor, FloorPlan& out) {
 }  // namespace
 
 FloorPlan generate_floor(tae::Rng& rng, int w, int h, int floor) {
+    if (w < 8 || h < 5) throw std::invalid_argument("mapgen: floor size too small");
+
     FloorPlan plan;
     // Generation is randomized; retry until a plan validates. In practice
     // the first or second attempt succeeds.
     for (int i = 0; i < 100; ++i) {
         if (try_generate(rng, w, h, floor, plan)) return plan;
     }
-    // Pathological terminal sizes shouldn't be reachable (App enforces
-    // 80x24), but fail loudly rather than loop forever.
-    throw std::runtime_error("mapgen: could not generate a valid floor");
+
+    // Degenerate sizes (far below the 80x24 the app enforces) can't fit a
+    // rooms-and-corridors floor; fall back to a single open arena so the
+    // game never dies in mapgen.
+    plan = FloorPlan{};
+    Map m(w, h, Tile::Wall);
+    for (int y = 1; y < h - 1; ++y) {
+        for (int x = 1; x < w - 1; ++x) m.set(x, y, Tile::Floor);
+    }
+    plan.start = {2, h / 2};
+    plan.exit = {w - 3, h / 2};
+    plan.key = {w / 2, 1};
+    m.set(plan.exit.x, plan.exit.y, Tile::Exit);
+    plan.spawners = {{1, 1}, {w - 2, h - 2}};
+    plan.food = {{w / 2, h - 2}};
+    plan.map = std::move(m);
+    return plan;
 }
 
 }  // namespace gl
